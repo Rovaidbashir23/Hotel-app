@@ -1,0 +1,31 @@
+CREATE DATABASE hoteldb;
+GO
+
+USE hoteldb;
+GO
+
+CREATE TABLE users (
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  name NVARCHAR(100) NOT NULL,
+  email NVARCHAR(100) UNIQUE NOT NULL,
+  password NVARCHAR(255) NOT NULL,
+  role NVARCHAR(10) DEFAULT 'user'
+);
+GO
+
+CREATE TABLE rooms (
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  room_number NVARCHAR(10) UNIQUE NOT NULL,
+  room_type NVARCHAR(50),
+  is_available BIT DEFAULT 1
+);
+GO
+
+CREATE TABLE bookings (
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  user_id INT FOREIGN KEY REFERENCES users(id),
+  room_id INT FOREIGN KEY REFERENCES rooms(id),
+  check_in DATETIME,
+  check_out DATETIME,
+  status NVARCHAR(20) DEFAULT 'booked'
+);
