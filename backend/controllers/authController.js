@@ -1,18 +1,10 @@
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { poolPromise, sql } = require("../config/db");
+const User = require("../models/User");
 
 const login = async (req, res) => {
   const { email, password } = req.body;
-
   try {
-    const pool = await poolPromise;
-    const result = await pool
-      .request()
-      .input("email", sql.NVarChar, email)
-      .query("SELECT * FROM users WHERE email = @email");
-
-    const user = result.recordset[0];
+    const user = await User.findOne({ where: { email } });
 
     if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });

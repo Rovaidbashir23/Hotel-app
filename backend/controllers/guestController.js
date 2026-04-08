@@ -1,29 +1,23 @@
-const { poolPromise, sql } = require("../config/db");
+const Booking = require("../models/Booking");
+const Room = require("../models/Room");
 
 const checkIn = async (req, res) => {
   const userId = req.user.id;
   try {
-    const pool = await poolPromise;
+    const booking = await Booking.findOne({
+      where: { user_id: userId, status: "booked" },
+    });
 
-    const booking = await pool
-      .request()
-      .input("user_id", sql.Int, userId)
-      .query(
-        "SELECT * FROM bookings WHERE user_id = @user_id AND status = 'booked'",
-      );
-
-    if (booking.recordset.length === 0) {
+    if (!booking) {
       return res
         .status(404)
         .json({ message: "No booking found for this user" });
     }
 
-    await pool
-      .request()
-      .input("user_id", sql.Int, userId)
-      .query(
-        "UPDATE bookings SET status = 'checked_in', check_in = GETDATE() WHERE user_id = @user_id AND status = 'booked'",
-      );
+    await Booking.update(
+      { status: "checked_in", check_in: new Date() },
+      { where: { user_id: userId, status: "booked" } },
+    );
 
     res.json({ message: "Checked in successfully" });
   } catch (err) {
@@ -34,32 +28,23 @@ const checkIn = async (req, res) => {
 const checkOut = async (req, res) => {
   const userId = req.user.id;
   try {
-    const pool = await poolPromise;
+    const booking = await Booking.findOne({
+      where: { user_id: userId, status: "checked_in" },
+    });
 
-    const booking = await pool
-      .request()
-      .input("user_id", sql.Int, userId)
-      .query(
-        "SELECT * FROM bookings WHERE user_id = @user_id AND status = 'checked_in'",
-      );
-
-    if (booking.recordset.length === 0) {
+    if (!booking) {
       return res.status(404).json({ message: "No active check-in found" });
     }
 
-    const roomId = booking.recordset[0].room_id;
+    await Booking.update(
+      { status: "checked_out", check_out: new Date() },
+      { where: { user_id: userId, status: "checked_in" } },
+    );
 
-    await pool
-      .request()
-      .input("user_id", sql.Int, userId)
-      .query(
-        "UPDATE bookings SET status = 'checked_out', check_out = GETDATE() WHERE user_id = @user_id AND status = 'checked_in'",
-      );
-
-    await pool
-      .request()
-      .input("room_id", sql.Int, roomId)
-      .query("UPDATE rooms SET is_available = 1 WHERE id = @room_id");
+    await Room.update(
+      { is_available: true },
+      { where: { id: booking.room_id } },
+    );
 
     res.json({ message: "Checked out successfully" });
   } catch (err) {
@@ -70,19 +55,23 @@ const checkOut = async (req, res) => {
 const myBooking = async (req, res) => {
   const userId = req.user.id;
   try {
-    const pool = await poolPromise;
-    const result = await pool.request().input("user_id", sql.Int, userId)
-      .query(`SELECT b.id, b.status, b.check_in, b.check_out,
-              r.room_number, r.room_type
-              FROM bookings b
-              JOIN rooms r ON b.room_id = r.id
-              WHERE b.user_id = @user_id`);
+    const booking = await Booking.findOne({
+      where: { user_id: userId },
+      include: [{ model: Room, attributes: ["room_number", "room_type"] }],
+    });
 
-    if (result.recordset.length === 0) {
+    if (!booking) {
       return res.status(404).json({ message: "No booking found" });
     }
 
-    res.json(result.recordset[0]);
+    res.json({
+      id: booking.id,
+      status: booking.status,
+      check_in: booking.check_in,
+      check_out: booking.check_out,
+      room_number: booking.Room.room_number,
+      room_type: booking.Room.room_type,
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }

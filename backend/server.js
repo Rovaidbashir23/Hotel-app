@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { poolPromise } = require("./config/db");
+const { connectDB } = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const guestRoutes = require("./routes/guestRoutes");
@@ -20,6 +20,7 @@ app.get("/", (req, res) => {
 });
 
 const PORT = 8000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await connectDB();
   console.log(`Server is running on port ${PORT}`);
 });
